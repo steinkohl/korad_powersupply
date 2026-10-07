@@ -1,0 +1,29 @@
+##########################
+Korad KC3405P Power Supply
+##########################
+
+The KC3405P is a four channel programmable power supply with an Ethernet interface.
+It is controlled by sending ASCII commands as UDP datagrams (default port 18190) and
+therefore uses the :class:`~pymeasure.adapters.UDPAdapter`.
+The device replies to the same UDP port it is configured with, so the local socket is bound
+to that port.
+
+.. code-block:: python
+
+    from pymeasure.instruments.korad import KC3405P
+
+    psu = KC3405P("192.168.1.100")
+    psu.ch_1.voltage_setpoint = 5
+    psu.ch_1.current_setpoint = 0.5
+    psu.ch_1.ocp_enabled = True
+    psu.ch_1.output_enabled = True
+    print(psu.ch_1.voltage, psu.ch_1.current, psu.ch_1.mode)
+    psu.shutdown()  # switches off all outputs
+
+.. autoclass:: pymeasure.instruments.korad.KC3405P
+    :members:
+    :show-inheritance:
+
+.. autoclass:: pymeasure.instruments.korad.kc3405p.KC3405PChannel
+    :members:
+    :show-inheritance:
