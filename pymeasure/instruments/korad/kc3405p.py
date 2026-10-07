@@ -25,47 +25,75 @@
 from pymeasure.adapters import UDPAdapter
 from pymeasure.instruments import Channel, Instrument
 from pymeasure.instruments.validators import strict_discrete_set, strict_range
+from pymeasure.units import ureg
 
 #: Default UDP port of the KC3405P.
 DEFAULT_PORT = 18190
+
+
+def _quantity(unit):
+    """Return a `get_process` function that attaches `unit` to a measured value."""
+    return lambda value: ureg.Quantity(value, unit)
+
+
+def _quantity_range(unit):
+    """Return a validator that accepts a plain number (in `unit`) or a pint quantity of the
+    same dimension and checks its magnitude in `unit` against a strict range."""
+    def validator(value, values):
+        if isinstance(value, ureg.Quantity):
+            value = value.to(unit).magnitude
+        return strict_range(value, values)
+    return validator
 
 
 class KC3405PChannel(Channel):
     """One output channel of the Korad KC3405P."""
 
     voltage = Channel.measurement(
-        "VOUT{ch}?", """Measure the actual output voltage in V.""",
+        "VOUT{ch}?", """Measure the actual output voltage (:class:`pint.Quantity` in V).""",
+        get_process=_quantity("V"),
     )
 
     current = Channel.measurement(
-        "IOUT{ch}?", """Measure the actual output current in A.""",
+        "IOUT{ch}?", """Measure the actual output current (:class:`pint.Quantity` in A).""",
+        get_process=_quantity("A"),
     )
 
     voltage_setpoint = Channel.control(
         "VSET{ch}?", "VSET{ch}:%.3f",
-        """Control the output voltage setpoint in V (float strictly from 0 to 30).""",
-        validator=strict_range,
+        """Control the output voltage setpoint
+        (:class:`pint.Quantity` in V, strictly from 0 to 30 V).
+        A plain number is taken as V.""",
+        validator=_quantity_range("V"),
+        get_process=_quantity("V"),
         values=[0, 30],
     )
 
     current_setpoint = Channel.control(
         "ISET{ch}?", "ISET{ch}:%.3f",
-        """Control the output current setpoint in A (float strictly from 0 to 5).""",
-        validator=strict_range,
+        """Control the output current setpoint
+        (:class:`pint.Quantity` in A, strictly from 0 to 5 A).
+        A plain number is taken as A.""",
+        validator=_quantity_range("A"),
+        get_process=_quantity("A"),
         values=[0, 5],
     )
 
     ocp_setpoint = Channel.control(
         "OCPSET{ch}?", "OCPSET{ch}:%.3f",
-        """Control the overcurrent protection threshold in A (float strictly from 0 to 5.1).""",
-        validator=strict_range,
+        """Control the overcurrent protection threshold (:class:`pint.Quantity` in A, strictly
+        from 0 to 5.1 A). A plain number is taken as A.""",
+        validator=_quantity_range("A"),
+        get_process=_quantity("A"),
         values=[0, 5.1],
     )
 
     ovp_setpoint = Channel.control(
         "OVPSET{ch}?", "OVPSET{ch}:%.3f",
-        """Control the overvoltage protection threshold in V (float strictly from 0 to 31).""",
-        validator=strict_range,
+        """Control the overvoltage protection threshold (:class:`pint.Quantity` in V, strictly
+        from 0 to 31 V). A plain number is taken as V.""",
+        validator=_quantity_range("V"),
+        get_process=_quantity("V"),
         values=[0, 31],
     )
 
@@ -140,11 +168,15 @@ class KC3405P(Instrument):
     The channels are available as :attr:`ch_1` to :attr:`ch_4` and
     through the :attr:`channels` collection.
 
+    Voltages and currents are :class:`pint.Quantity` objects (see :mod:`pymeasure.units`).
+
     .. code-block:: python
 
+        from pymeasure.units import ureg
+
         psu = KC3405P("192.168.1.100")
-        psu.ch_1.voltage_setpoint = 5
-        psu.ch_1.current_setpoint = 0.5
+        psu.ch_1.voltage_setpoint = 5  # plain numbers are taken as V (A for currents)
+        psu.ch_1.current_setpoint = 500 * ureg.mA
         psu.ch_1.output_enabled = True
         print(psu.ch_1.voltage, psu.ch_1.current, psu.ch_1.mode)
         psu.shutdown()

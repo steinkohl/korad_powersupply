@@ -21,11 +21,25 @@ it belongs in pymeasure:
 from pymeasure.instruments.korad import KC3405P
 
 psu = KC3405P("192.168.1.100")      # or KC3405P(adapter_instance)
-psu.ch_1.voltage_setpoint = 5       # V
-psu.ch_1.current_setpoint = 0.5     # A
+psu.ch_1.voltage_setpoint = 5       # plain numbers are taken as V
+psu.ch_1.current_setpoint = 0.5     # ... and A
 psu.ch_1.output_enabled = True
 print(psu.ch_1.voltage, psu.ch_1.current, psu.ch_1.mode)
 psu.shutdown()                      # all outputs off
+```
+
+Voltages and currents (measurements, setpoints, protection thresholds) are
+[pint](https://pint.readthedocs.io) quantities from `pymeasure.units.ureg`.
+Setpoints also accept quantities in any compatible unit:
+
+```python
+from pymeasure.units import ureg
+
+psu.ch_1.voltage_setpoint = 500 * ureg.mV
+psu.ch_1.current_setpoint = 250 * ureg.mA
+psu.ch_1.voltage.to("mV")           # <Quantity(5000.0, 'millivolt')>
+psu.ch_1.voltage.magnitude          # 5.0
+psu.ch_1.voltage_setpoint = 1 * ureg.A   # pint.DimensionalityError
 ```
 
 Channels are `psu.ch_1` ... `psu.ch_4` (also `psu.channels`). See the docs for all properties

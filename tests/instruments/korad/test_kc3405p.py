@@ -22,31 +22,55 @@
 # THE SOFTWARE.
 #
 
+import pint
 import pytest
 
 from pymeasure.test import expected_protocol
 from pymeasure.instruments.korad import KC3405P
+from pymeasure.units import ureg
 
 
 def test_voltage():
     with expected_protocol(KC3405P, [("VOUT2?", "5.001")]) as inst:
-        assert inst.ch_2.voltage == 5.001
+        assert inst.ch_2.voltage == 5.001 * ureg.V
 
 
 def test_current():
     with expected_protocol(KC3405P, [("IOUT4?", "0.123")]) as inst:
-        assert inst.ch_4.current == 0.123
+        assert inst.ch_4.current == 0.123 * ureg.A
 
 
 def test_voltage_setpoint():
     with expected_protocol(KC3405P, [("VSET1:12.500", None), ("VSET1?", "12.500")]) as inst:
         inst.ch_1.voltage_setpoint = 12.5
-        assert inst.ch_1.voltage_setpoint == 12.5
+        assert inst.ch_1.voltage_setpoint == 12.5 * ureg.V
 
 
 def test_current_setpoint():
     with expected_protocol(KC3405P, [("ISET3:1.250", None)]) as inst:
         inst.ch_3.current_setpoint = 1.25
+
+
+def test_setpoints_accept_quantities_in_other_units():
+    with expected_protocol(KC3405P, [("VSET1:0.500", None), ("ISET1:0.250", None),
+                                     ("OCPSET1:2.000", None),
+                                     ("OVPSET1:0.015", None)]) as inst:
+        inst.ch_1.voltage_setpoint = 500 * ureg.mV
+        inst.ch_1.current_setpoint = 250 * ureg.mA
+        inst.ch_1.ocp_setpoint = 2 * ureg.A
+        inst.ch_1.ovp_setpoint = 15 * ureg.mV
+
+
+def test_setpoint_wrong_dimension():
+    with expected_protocol(KC3405P, []) as inst:
+        with pytest.raises(pint.DimensionalityError):
+            inst.ch_1.voltage_setpoint = 1 * ureg.A
+
+
+def test_setpoint_quantity_out_of_range():
+    with expected_protocol(KC3405P, []) as inst:
+        with pytest.raises(ValueError):
+            inst.ch_1.voltage_setpoint = 31000 * ureg.mV
 
 
 @pytest.mark.parametrize("prop, value", [("voltage_setpoint", 31), ("voltage_setpoint", -1),
@@ -62,9 +86,9 @@ def test_protection_setpoints():
     with expected_protocol(KC3405P, [("OCPSET1:5.100", None), ("OCPSET1?", "5.100"),
                                      ("OVPSET2:31.000", None), ("OVPSET2?", "31.000")]) as inst:
         inst.ch_1.ocp_setpoint = 5.1
-        assert inst.ch_1.ocp_setpoint == 5.1
+        assert inst.ch_1.ocp_setpoint == 5.1 * ureg.A
         inst.ch_2.ovp_setpoint = 31
-        assert inst.ch_2.ovp_setpoint == 31
+        assert inst.ch_2.ovp_setpoint == 31 * ureg.V
 
 
 def test_protection_enabled():
